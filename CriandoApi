@@ -1,0 +1,75 @@
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+)
+
+type Cliente struct {
+	Usuario      string    `json:"Usuario, omitempty"`
+	PrimeiroNome string    `json:"PrimeiroNome, omitempty"`
+	UltimoNome   string    `json:"UltimoNome, omitempty"`
+	Endereco     *Endereco `json:"Endereco, omitempty"`
+}
+
+type Endereco struct {
+	Rua    string `json:"Rua, omitempty"`
+	Numero int    `json:"Numero, omitempty"`
+	Estado string `json:"Estado, omitempty`
+}
+
+var pessoas []Cliente
+
+func Getpessoas(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(pessoas)
+}
+
+func GetCliente(w http.ResponseWriter, r *http.Request) {
+	parametro := mux.Vars(r)
+	for _, item := range pessoas {
+		if item.Usuario == parametro["Usuario"] {
+			json.NewEncoder(w).Encode(item)
+			return
+		}
+	}
+	json.NewEncoder(w).Encode(&Cliente{})
+}
+
+func CriarPessoa(w http.ResponseWriter, r *http.Request) {
+	parametro := mux.Vars(r)
+	var people Cliente
+	_ = json.NewDecoder(r.Body).Decode(&people)
+	people.Usuario = parametro["Usuario"]
+	pessoas = append(pessoas, people)
+	json.NewEncoder(w).Encode(pessoas)
+}
+
+func DeletarPessoa(w http.ResponseWriter, r *http.Request) {
+	parametro := mux.Vars(r)
+	for index, item := range pessoas {
+		if item.Usuario == parametro["Usuario"] {
+			pessoas = append(pessoas[:index], pessoas[index+1:]...)
+			break
+		}
+		json.NewEncoder(w).Encode(pessoas)
+	}
+}
+
+func main() {
+	router := mux.NewRouter()
+
+	pessoas = append(pessoas, Cliente{Usuario: "1", PrimeiroNome: "Rafael", UltimoNome: "Fernando", Endereco: &Endereco{Rua: "França",
+		Numero: 570, Estado: "MA"}})
+
+	pessoas = append(pessoas, Cliente{Usuario: "2", PrimeiroNome: "Luana", UltimoNome: "Rafaela", Endereco: &Endereco{Rua: "Japão",
+		Numero: 33, Estado: "SP"}})
+
+	router.HandleFunc("/contato", GetCliente).Methods("GET")
+	router.HandleFunc("/contato/{Usuario}", Getpessoas).Methods("GET")
+	router.HandleFunc("/contato/{Usuario}", CriarPessoa).Methods("POST")
+	router.HandleFunc("/contato/{Usuario}", DeletarPessoa).Methods("DELETE")
+	log.Fatal(http.ListenAndServe(":8000", router))
+}
